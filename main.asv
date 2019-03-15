@@ -1,0 +1,86 @@
+%The foolowing code takes a noisy input sequence following QAM-16
+%modulation scheme (i.e) each symbol has an inphase and quadrature
+%component + AWGN. The sequence consists of 300 symbols. This sequence is
+%matched whith the closest sequence which would have been originally sent
+%following QAM-4 modulation.
+
+%generate input sequence
+M = 4;                     % Size of signal constellation
+k = log2(M);                % Number of bits per symbol
+n = 24;                   % Number of bits to process
+numSamplesPerSymbol = 1;    % Oversampling factor
+rng default                 % Use default random number generator
+dataIn = randi([0 1],n,1);  % Generate vector of binary data
+dataInMatrix = reshape(dataIn,length(dataIn)/k,k);   % Reshape data into binary k-tuples, k = log2(M)
+dataSymbolsIn = bi2de(dataInMatrix);             % Convert to integers
+dataMod = qammod(dataSymbolsIn,M,'bin') ;        % Binary coding, phase offset = 0
+EbNo = 10;
+snr = EbNo + 10*log10(k) - 10*log10(numSamplesPerSymbol);
+receivedSignal = awgn(dataMod,snr,'measured');
+
+%generate random QAM-4 sequences (i.e) population with size 1500
+size = 1500;
+population = randi([0 1],size,n);
+gen = 0;
+while(gen < 10)
+for i = 1:size
+    dataInMatrix = reshape(population(i,:),length(population(i,:))/k,k);   % Reshape data into binary k-tuples, k = log2(M)
+    dataSymbolsIn = bi2de(dataInMatrix);             % Convert to integers
+    dataMod = qammod(dataSymbolsIn,M,'bin');
+    %find fitness for all individuals
+    fitness = 1 ./ (1 + dataMod - receivedSignal);
+    fitnessMag = abs(fitness);
+    totalfitness(i) = sum(fitnessMag);
+end
+
+%selection, crossover
+%newPopulation has only the children
+newPopulation = zeros(size,n);
+    for j = 1: 2: size
+        % Selection
+        [ parent1, parent2] = selection(population,totalfitness);
+        
+        % Crossover
+        [child1 , child2] = crossover(parent1 , parent2, 'single');
+        
+        newPopulation(j,:) = child1;
+        newPopulation(j+1,:) = child2;
+    end
+%select some number of elite members of the original population and rest are taken from new popultion
+finalPopulation = elitism(population , newPopulation, 0.01, totalfitness);
+
+%{
+DEBUG
+for i = 1:size
+    dataInMatrix = reshape(finalPopulation(i,:),length(finalPopulation(i,:))/k,k);   % Reshape data into binary k-tuples, k = log2(M)
+    dataSymbolsIn = bi2de(dataInMatrix);             % Convert to integers
+    dataMod = qammod(dataSymbolsIn,M,'bin');
+    %find fitness for all individuals
+    fitness = 1 ./ (1 + dataMod - receivedSignal);
+    fitnessMag = abs(fitness);
+    totalfitness(i) = sum(fitnessMag);
+end
+totalfitness
+%}
+%fitness of fittest individual after 1st generation
+    dataInMatrix = reshape(finalPopulation(1,:),length(finalPopulation(1,:))/k,k);   % Reshape data into binary k-tuples, k = log2(M)
+    dataSymbolsIn = bi2de(dataInMatrix);             % Convert to integers
+    dataMod = qammod(dataSymbolsIn,M,'bin');
+    %find fitness for all individuals
+    fitness = 1 ./ (1 + dataMod - receivedSignal);
+    fitnessMag = abs(fitness);
+    maxfitness = sum(fitnessMag)
+    gen = gen + 1;
+end    
+
+finalPopulation(1,:)
+dataIn
+
+
+
+
+
+
+
+
+
